@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-4">
+    <h2>Staff Dashboard</h2>
+    <p class="text-muted">Manage your assigned treks and participant lists.</p>
+</div>
+
+<div class="row">
+    {% for t in treks %}
+    <div class="col-12 mb-4">
+        <div class="card border-primary shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between">
+                <span><strong>Trek ID:</strong> {{ t.id }} | <strong>{{ t.trek_name }}</strong></span>
+                <span class="badge bg-light text-primary">{{ t.status }}</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h5>Update Trek Status</h5>
+                        <form action="{{ url_for('update_trek', trek_id=t.id) }}" method="POST">
+                            <div class="mb-2">
+                                <label class="small">Change Status</label>
+                                <select name="status" class="form-select form-select-sm">
+                                    <option value="Pending" {% if t.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                    <option value="Open" {% if t.status == 'Open' %}selected{% endif %}>Open</option>
+                                    <option value="Closed" {% if t.status == 'Closed' %}selected{% endif %}>Closed</option>
+                                    <option value="Completed" {% if t.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="small">Manually Adjust Available Slots</label>
+                                <input type="number" name="available_slots" value="{{ t.available_slots }}" class="form-control form-control-sm">
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm">Update Trek Info</button>
+                        </form>
+                    </div>
+                    <div class="col-md-8">
+                        <h5>Registered Trekkers ({{ t.bookings|length }})</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mt-2">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Contact</th>
+                                        <th>Booking Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for b in t.bookings %}
+                                    <tr>
+                                        <td>{{ b.trekker.name }}</td>
+                                        <td>{{ b.trekker.contact_details }}</td>
+                                        <td><span class="text-success">{{ b.status }}</span></td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="text-center text-muted">No users have booked this trek yet.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center mt-5">
+        <div class="alert alert-info">You haven't been assigned to any treks by the Admin yet.</div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

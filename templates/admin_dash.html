@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center my-3">
+    <h2>Admin Command Center</h2>
+    <span class="badge bg-dark p-2">System Principal Access Granted</span>
+</div>
+
+<div class="row text-center my-4">
+    <div class="col-md-3"><div class="card bg-info p-3 text-white border-0 shadow-sm"><h5>Total Routes</h5><h3>{{ total_treks }}</h3></div></div>
+    <div class="col-md-3"><div class="card bg-success p-3 text-white border-0 shadow-sm"><h5>Registered Trekkers</h5><h3>{{ total_users }}</h3></div></div>
+    <div class="col-md-3"><div class="card bg-warning p-3 text-dark border-0 shadow-sm"><h5>Staff Guides</h5><h3>{{ total_staff }}</h3></div></div>
+    <div class="col-md-3"><div class="card bg-secondary p-3 text-white border-0 shadow-sm"><h5>Global Bookings</h5><h3>{{ total_bookings }}</h3></div></div>
+</div>
+
+<hr class="my-4">
+
+<div class="card p-4 shadow-sm mb-4 bg-white border-0">
+    <h4 class="mb-3 text-success">Create New Trek Route</h4>
+    <form action="{{ url_for('add_trek') }}" method="POST" class="row g-3">
+        <div class="col-md-4"><label class="small text-muted fw-bold">Trek Name</label><input type="text" name="trek_name" placeholder="e.g. Annapurna Circuit" class="form-control" required></div>
+        <div class="col-md-4"><label class="small text-muted fw-bold">Location</label><input type="text" name="location" placeholder="e.g. Nepal" class="form-control" required></div>
+        <div class="col-md-4">
+            <label class="small text-muted fw-bold">Difficulty Profile</label>
+            <select name="difficulty" class="form-select">
+                <option value="Easy">Easy</option>
+                <option value="Moderate">Moderate</option>
+                <option value="Hard">Hard</option>
+            </select>
+        </div>
+        <div class="col-md-3"><label class="small text-muted fw-bold">Duration (Days)</label><input type="number" name="duration" class="form-control" min="1" required></div>
+        <div class="col-md-3"><label class="small text-muted fw-bold">Total Max Slots</label><input type="number" name="slots" class="form-control" min="1" required></div>
+        <div class="col-md-3"><label class="small text-muted fw-bold">Target Start Date</label><input type="date" name="start_date" class="form-control" required></div>
+        <div class="col-md-3"><label class="small text-muted fw-bold">Target End Date</label><input type="date" name="end_date" class="form-control" required></div>
+        <div class="col-12 mt-3"><button type="submit" class="btn btn-success w-100 py-2">Commit Route Entry to Database</button></div>
+    </form>
+</div>
+
+<hr class="my-4">
+
+<div class="card p-3 shadow-sm bg-white border-0 mb-4">
+    <form method="GET" action="{{ url_for('admin_dashboard') }}" class="input-group">
+        <input type="text" name="search" class="form-control" placeholder="Search Master Records across Treks, Staff or Trekkers by Name or ID...">
+        <button type="submit" class="btn btn-primary px-4">Execute System Query</button>
+        {% if request.args.get('search') %}
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">Clear Filter</a>
+        {% endif %}
+    </form>
+</div>
+
+<h4 class="mb-2">All System Trek Route Entries</h4>
+<div class="table-responsive shadow-sm bg-white rounded p-2 mb-4">
+    <table class="table table-striped table-hover align-middle mb-0">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th><th>Name</th><th>Location</th><th>Difficulty</th><th>Slots Allocation</th><th>Current Status</th><th>Current Guide Assignment</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in treks %}
+            <tr>
+                <td><strong>#{{ t.id }}</strong></td>
+                <td>{{ t.trek_name }}</td>
+                <td>{{ t.location }}</td>
+                <td><span class="badge bg-secondary">{{ t.difficulty }}</span></td>
+                <td><code>{{ t.available_slots }} / {{ t.total_slots }}</code></td>
+                <td>
+                    <span class="badge {% if t.status == 'Completed' %}bg-success{% elif t.status == 'Open' %}bg-primary{% else %}bg-warning text-dark{% endif %}">
+                        {{ t.status }}
+                    </span>
+                </td>
+                <td><span class="text-primary fw-bold">{{ t.staff_member.name if t.staff_member else 'Unassigned' }}</span></td>
+                <td>
+                    <form action="{{ url_for('assign_staff', trek_id=t.id) }}" method="POST" class="d-inline-block">
+                        <select name="staff_id" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                            <option value="">Assign Guide</option>
+                            {% for s in staff if s.status == 'approved' %}
+                                <option value="{{ s.id }}" {% if t.assigned_staff_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                    <a href="{{ url_for('delete_trek', trek_id=t.id) }}" class="btn btn-sm btn-danger ms-2" onclick="return confirm('Confirm removal of this trek entry?')">Delete</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted">No route logs found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<h4 class="mb-2 text-secondary">Global Booking Audit Trail (Historical Log)</h4>
+<div class="table-responsive shadow-sm bg-white rounded p-2 mb-4">
+    <table class="table table-sm table-bordered align-middle mb-0">
+        <thead class="table-secondary">
+            <tr><th>Booking ID</th><th>Trekker Name</th><th>Trek Destination</th><th>Booking Date Logged</th><th>Current Transaction Status</th></tr>
+        </thead>
+        <tbody>
+            {% for b in bookings %}
+            <tr>
+                <td>#{{ b.id }}</td>
+                <td>{{ b.trekker.name }} <small class="text-muted">({{ b.trekker.username }})</small></td>
+                <td><strong>{{ b.trek_event.trek_name }}</strong></td>
+                <td>{{ b.booking_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                    <span class="badge {% if b.status == 'Completed' %}bg-success{% else %}bg-info{% endif %}">
+                        {{ b.status }}
+                    </span>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted">No reservation instances logged in the database yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<h4 class="mb-2 text-primary">Registered Trekkers (Users)</h4>
+<div class="table-responsive shadow-sm bg-white rounded p-2 mb-4">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-dark">
+            <tr><th>User ID</th><th>Trekker Name</th><th>Username Reference</th><th>Contact Matrix</th><th>Account Status</th><th>Administrative Actions</th></tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>#{{ u.id }}</td>
+                <td><strong>{{ u.name }}</strong></td>
+                <td><code>{{ u.username }}</code></td>
+                <td>{{ u.contact_details if u.contact_details else 'None Listed' }}</td>
+                <td><span class="badge {% if u.status == 'blacklisted' %}bg-danger{% else %}bg-success{% endif %}">{{ u.status }}</span></td>
+                <td>
+                    {% if u.status != 'blacklisted' %}
+                        <a href="{{ url_for('change_user_status', uid=u.id, action='blacklist') }}" class="btn btn-sm btn-outline-danger">Blacklist Account</a>
+                    {% else %}
+                        <a href="{{ url_for('change_user_status', uid=u.id, action='activate') }}" class="btn btn-sm btn-outline-success">Restore Access Permissions</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<h4 class="mb-2 text-warning">Staff Guides Approvals & Operations</h4>
+<div class="table-responsive shadow-sm bg-white rounded p-2">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-dark">
+            <tr><th>Guide ID</th><th>Staff Name</th><th>Contact Records</th><th>Application Status</th><th>Validation Trigger Controls</th></tr>
+        </thead>
+        <tbody>
+            {% for s in staff %}
+            <tr>
+                <td>#{{ s.id }}</td>
+                <td><strong>{{ s.name }}</strong></td>
+                <td>{{ s.contact_details if s.contact_details else 'N/A' }}</td>
+                <td><span class="badge {% if s.status == 'pending' %}bg-warning text-dark{% elif s.status == 'blacklisted' %}bg-danger{% else %}bg-success{% endif %}">{{ s.status }}</span></td>
+                <td>
+                    {% if s.status == 'pending' %}
+                        <a href="{{ url_for('change_user_status', uid=s.id, action='approve') }}" class="btn btn-sm btn-success">Approve Account</a>
+                    {% endif %}
+                    {% if s.status != 'blacklisted' %}
+                        <a href="{{ url_for('change_user_status', uid=s.id, action='blacklist') }}" class="btn btn-sm btn-danger">Blacklist Guide</a>
+                    {% else %}
+                        <a href="{{ url_for('change_user_status', uid=s.id, action='activate') }}" class="btn btn-sm btn-warning">Restore Guide</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
