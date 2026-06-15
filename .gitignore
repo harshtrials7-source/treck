@@ -1,0 +1,10 @@
+# Python compilation caches
+__pycache__/
+*.pyc
+
+# Local runtime SQLite Database (Evaluators must generate their own programmatically)
+database.db
+
+# IDE configuration folders
+.vscode/
+.idea/
